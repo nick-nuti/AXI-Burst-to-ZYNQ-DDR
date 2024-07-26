@@ -188,29 +188,20 @@ module axi_traffic_gen #(
     
     reg [3:0] color_combination;
     
-    reg [ADDR_W-1:0] addr_readback_buff;
+    wire addr_recycle;
     
     assign user_pixels_1_2 = 1;
     assign user_burst_len_in = 15;
     assign user_data_in = {2{8'h00,R,G,B}};
     assign user_addr_in = pixel_cnt;
     
-    always@(posedge aclk)
-    begin
-    
-        addr_readback_buff <= m_axi_awaddr;
-    
-    end
+		addr_recycle = (user_addr_in >= ADDR_END) ? 1 : 0;
     
     always@(posedge aclk or negedge aresetn)
     begin
         if(~aresetn)
         begin
             user_start <= 1'b0;
-            
-            R <= 8'h00;
-            G <= 8'h00;
-            B <= 8'h00;
             
             color_combination <= 'h0;
             
@@ -221,13 +212,10 @@ module axi_traffic_gen #(
         begin
             user_start <= 1'b1;
             
-            if(addr_readback_buff == ADDR_END)
+            if(addr_recycle)
             begin
                 pixel_cnt <= ADDR_START;
-                //color_combination <= color_combination + 1;
-                R <= B + 'hFF;
-                G <= R;
-                B <= G;
+                color_combination <= color_combination + 1;
             end
             
             else
@@ -242,13 +230,9 @@ module axi_traffic_gen #(
                     pixel_cnt <= pixel_cnt;
                 end
                 
-                //color_combination <= color_combination;
-                R <= R;
-                G <= G;
-                B <= B;
+                color_combination <= color_combination;
             end
             
-            /*
             case(color_combination)
                 0: 
                 begin
@@ -299,7 +283,6 @@ module axi_traffic_gen #(
                     B <= 8'h00;
                 end
             endcase
-            */
         end
     end
 
