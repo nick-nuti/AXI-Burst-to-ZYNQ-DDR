@@ -20,14 +20,13 @@
 //
 //////////////////////////////////////////////////////////////////////////////////
 
-
 module axi_traffic_gen #(
     parameter ADDR_W=32,
     parameter DATA_W=64,
     parameter FRAME_W = 1920,
     parameter FRAME_H = 1080,
     parameter ADDR_START = 32'h10000000,
-    parameter ADDR_END   = 32'h101FA3F0 //ADDR_START + (FRAME_W*FRAME_H)-1
+    parameter ADDR_END   = 32'h101FA3FF //ADDR_START + (FRAME_W*FRAME_H)-1
 )
 (
   /**************** Write Address Channel Signals ****************/
@@ -37,7 +36,7 @@ module axi_traffic_gen #(
   input  wire                          m_axi_awready, // (done)
   output reg [3-1:0]                   m_axi_awsize = $clog2(DATA_W/8), //3'b011, // burst size - size of each transfer in the burst 3'b011 for 8 bytes
   output reg [2-1:0]                   m_axi_awburst = 2'b01, // fixed burst = 00, incremental = 01, wrapped burst = 10
-  output reg [4-1:0]                   m_axi_awcache = 4'b0011, // cache type - how transaction interacts with caches
+  output reg [4-1:0]                   m_axi_awcache = 4'b0000, //4'b0011, // cache type - how transaction interacts with caches
   output reg [4-1:0]                   m_axi_awlen, // number of data transfers in the burst (0-255) (done)
   output reg [1-1:0]                   m_axi_awlock = 1'b0, // lock type - indicates if transaction is part of locked sequence
   output reg [4-1:0]                   m_axi_awqos = 4'b0000, // quality of service - transaction indication of priority level
@@ -54,7 +53,11 @@ module axi_traffic_gen #(
   output reg                           m_axi_bready, // (done) write response ready - 0 = not ready, 1 = ready
   /**************** System Signals ****************/
   input wire                           aclk,
-  input wire                           aresetn
+  input wire                           aresetn,
+
+(* X_INTERFACE_INFO = "xilinx.com:signal:interrupt:1.0 vsync INTERRUPT" *)
+(* X_INTERFACE_PARAMETER = "SENSITIVITY EDGE_RISING" *)  
+  output wire                          vsync
  
   // driven input from my logic
   /*
@@ -188,48 +191,60 @@ module axi_traffic_gen #(
     
     reg [3:0] color_combination;
     
-    wire addr_recycle;
-    
+    reg vsync_dff;
+           
     assign user_pixels_1_2 = 1;
     assign user_burst_len_in = 15;
     assign user_data_in = {2{8'h00,R,G,B}};
     assign user_addr_in = pixel_cnt;
-    
-		addr_recycle = (user_addr_in >= ADDR_END) ? 1 : 0;
+    //
+    assign vsync = (pixel_cnt >= (ADDR_END - ((user_burst_len_in+1)<<1))) ? 1'b1 : 1'b0;
     
     always@(posedge aclk or negedge aresetn)
     begin
+        
         if(~aresetn)
         begin
             user_start <= 1'b0;
             
+            R <= 8'h00;
+            G <= 8'h00;
+            B <= 8'h00;
+            
             color_combination <= 'h0;
             
             pixel_cnt <= ADDR_START;
+            
+            vsync_dff <= 0;
         end
         
         else
         begin
+            
+            //if(vsync) vsync_dff <= 1;
+            //else if(user_free) vsync_dff <= 0;
+            //else vsync_dff <= vsync_dff;
+        
             user_start <= 1'b1;
             
-            if(addr_recycle)
+            if(user_free)
             begin
-                pixel_cnt <= ADDR_START;
-                color_combination <= color_combination + 1;
-            end
-            
-            else
-            begin
-                if(user_free)
+                if(vsync)
                 begin
-                    pixel_cnt <= pixel_cnt + (user_burst_len_in);
+                    pixel_cnt <= ADDR_START;
+                    color_combination <= color_combination + 1;
                 end
                 
                 else
                 begin
-                    pixel_cnt <= pixel_cnt;
+                    pixel_cnt <= pixel_cnt + ((user_burst_len_in+1)<<1); // 1 needs to change with DATA_W and ADDR_W
+                    color_combination <= color_combination;
                 end
-                
+            end
+            
+            else
+            begin
+                pixel_cnt <= pixel_cnt;
                 color_combination <= color_combination;
             end
             
@@ -283,6 +298,7 @@ module axi_traffic_gen #(
                     B <= 8'h00;
                 end
             endcase
+
         end
     end
 
