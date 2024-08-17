@@ -1,4 +1,4 @@
-<img width="926" alt="image" src="https://github.com/user-attachments/assets/f6938fb8-d6ec-4e02-b558-1292c398bc2e">
+<img width="926" alt="image" src="https://github.com/user-attachments/assets/ffb57375-55d8-459f-b041-9b62bc5b61c9">
 
 
 To run this project:
@@ -10,4 +10,3 @@ To run this project:
 6. create application (basic hello world)
 7. copy and paste the C code in this github to that file
 
-CURRENT ISSUE: basic RTL for managing address inputs to the AXI system is not resetting properly.... will fix
