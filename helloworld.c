@@ -45,11 +45,11 @@ unsigned long long read_global_timer() {
 
 //timer
 
-#define DDR_BASE_ADDR 0x40000000
+#define DDR_BASE_ADDR 0x10000000
 #define WIDTH 1920
 #define HEIGHT 1080
 #define PIXEL_SIZE 4  // Assuming 32-bit (4 bytes) per pixel
-#define MEM_SIZE (WIDTH * HEIGHT * PIXEL_SIZE)
+#define FRAME_SIZE (WIDTH * HEIGHT * PIXEL_SIZE)
 
 int main()
 {
@@ -65,17 +65,20 @@ int main()
 
     init_platform();
 
-    volatile Xuint32 *data_p = (Xuint32 *) 0x10000000;
+    volatile Xuint32 *data_p = (Xuint32 *) DDR_BASE_ADDR;
 
     volatile Xuint32 first_val, second_val;
 
     first_val = *(data_p);
+    Xil_DCacheFlushRange((unsigned int) DDR_BASE_ADDR, FRAME_SIZE);
+    
     xil_printf("first_val\t\t0x%08x\n\r", first_val);
     second_val = first_val;
 
     while(first_val == second_val)
     {
         second_val = *(data_p);
+        Xil_DCacheFlushRange((unsigned int) DDR_BASE_ADDR, FRAME_SIZE); // software will not work without this; ZYNQ needs to flush its cache for DRAM address space being driven by hardware
     }
 
     // Capture the time at Event B
